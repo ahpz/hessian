@@ -26,7 +26,7 @@
 #include "php_ini.h"
 #include "ext/standard/info.h"
 #include "php_hessian.h"
-//#define DEBUG
+#define DEBUG
 
 /* If you declare any globals in php_hessian.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(hessian)
@@ -58,6 +58,7 @@ static zval *mcpack2array(zval *data) {
     } else {
         php_error(E_WARNING, "call function mc_pack_pack2array fail.");
     }
+    efree(function_name);//堆上分配的 需要及时释放
     return retval_ptr;
 }
 
@@ -80,6 +81,7 @@ static zval *array2mcpack(zval *data) {
     } else {
         php_error(E_WARNING, "call function mc_pack_array2pack fail.");
     }
+    efree(function_name);
     return retval_ptr;
 }
 
@@ -210,7 +212,7 @@ PHP_METHOD(McpackHessianClient, __call) {
     ZVAL_STRINGL(tmp, ret_str, return_len, 1);
     result = mcpack2array(tmp);
     php_stream_close(stream);
-    efree(ret_str);
+    efree(tmp);
     
     // get result from array
     zval **ret_val = NULL;
@@ -330,6 +332,8 @@ PHP_METHOD(McpackHessianService, service)
     	ZVAL_STRINGL(tmp, str_request, str_request_len, 0);
     	zval *request = mcpack2array(tmp);//string ---> array
     	efree(tmp);//及时释放资源
+    	//efree(str_request);
+
     	if(!request) {
     		php_error(E_WARNING, "parse request fail.");
     		MAKE_STD_ZVAL(error);
