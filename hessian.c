@@ -157,68 +157,12 @@ PHP_FUNCTION(confirm_hessian_compiled)
 		return;
 	}
 
-    zval *retval_ptr = NULL;
-    MAKE_STD_ZVAL(retval_ptr);
-    zval *data;
-    MAKE_STD_ZVAL(data);
-    ZVAL_STRING(data, arg, arg_len);
-    zval *params[] = {data};
-    zval *function_name;
-    MAKE_STD_ZVAL(function_name);
-    ZVAL_STRING(function_name, "hessian_unserialize", 1);
-    #ifdef DEBUG
-        php_error(E_NOTICE, "unserialize type:%s", zend_get_type_by_const(Z_TYPE_P(data)));
-        php_error(E_NOTICE, "unserialize data:%s", Z_STRVAL_P(data));
-    #endif
-    //convert_to_string(data);
-    if (call_user_function(CG(function_table), NULL, function_name, retval_ptr, 1, params TSRMLS_CC) == SUCCESS) {
-        #ifdef DEBUG
-            zend_error(E_NOTICE, "call function unserialize success.");
-            zend_error(E_NOTICE, "data:%s", Z_STRVAL_P(data));
-            zend_error(E_NOTICE, "type of retval_ptr:%s",zend_get_type_by_const(Z_TYPE_P(retval_ptr)));
-        #endif
-    } else {
-        zend_error(E_WARNING, "call function unserialize fail.");
-    }
-    efree(function_name);
-    RETURN_ZVAL(retval_ptr, 1, 1);
-    //return retval_ptr;
 
 
 	len = spprintf(&strg, 0, "Congratulations! You have successfully modified ext/%.78s/config.m4. Module %.78s is now compiled into PHP.", "hessian", arg);
 	RETURN_STRINGL(strg, len, 0);
 }
-PHP_FUNCTION(hessian_unserialize)
-{
-    char *buf = NULL;
-    int buf_len;
-    const unsigned char *p;
-    php_unserialize_data_t var_hash;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &buf, &buf_len) == FAILURE) {
-        RETURN_FALSE;
-    }
-    zend_error(E_NOTICE, "in hessian_unserialize buf:%s",buf);
-    zend_error(E_NOTICE, "in hessian_unserialize buf_len:%d",buf_len);
-    if (buf_len == 0) {
-        RETURN_FALSE;
-    }
-
-    p = (const unsigned char*) buf;
-
-    PHP_VAR_UNSERIALIZE_INIT(var_hash);
-    zend_error(E_NOTICE, "after unserialize init.");
-
-    if (!php_var_unserialize(&return_value, &p, p + buf_len, &var_hash TSRMLS_CC)) {
-        PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
-        zval_dtor(return_value);
-        if (!EG(exception)) {
-            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Error at offset %ld of %d bytes", (long)((char*)p - buf), buf_len);
-        }
-        RETURN_FALSE;
-    }
-    PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
-}
 /* }}} */
 /* The previous line is meant for vim and emacs, so it can correctly fold and 
    unfold functions in source code. See the corresponding marks just before 
@@ -419,7 +363,7 @@ PHP_METHOD(McpackHessianService, service)
 
 	char *output = "php://output";
     char *input = "php://input";
-    size_t max_len = 1024 * 1024 * 1024;
+    size_t max_len = 1024 * 1024 ;
 
     char *str_request = NULL;
     size_t str_request_len = 0;
@@ -450,10 +394,7 @@ PHP_METHOD(McpackHessianService, service)
 	        break;
 
 	    }
-
-	    // #ifdef DEBUG
-	    // 	php_error(E_NOTICE, "In service before parse.")
-	    // #endif
+        php_stream_close(stream_in);
 	    #ifdef DEBUG
 	      php_error(E_NOTICE, "In service before parse.");
 	    #endif
@@ -463,6 +404,8 @@ PHP_METHOD(McpackHessianService, service)
         zval *request = binary2array(tmp);
     	efree(tmp);//及时释放资源
     	//efree(str_request);
+
+
 
     	if(!request) {
     		php_error(E_WARNING, "parse request fail.");
@@ -584,6 +527,7 @@ PHP_METHOD(McpackHessianService, service)
     //efree(request);
     //zval *pack = array2mcpack(response);
     zval *pack = array2binary(response);
+    efree(response);
     // //PHPWRITE(Z_STRVAL_P(pack), Z_STRLEN_P(pack));
     //输出结果
     #ifdef DEBUG
@@ -615,10 +559,11 @@ PHP_METHOD(McpackHessianService, service)
     php_stream_write(stream_out, Z_STRVAL_P(pack), Z_STRLEN_P(pack));
     //php_stream_write_string(stream_out, Z_STRVAL_P(pack));
     php_stream_close(stream_out);//关闭流
+    efree(pack);//释放空间
     #ifdef DEBUG
         //php_error(E_NOTICE, "in service after write retval:%d", Z_LVAL_P(retval_ptr));
     #endif
-    RETURN_ZVAL(retval_ptr, 1, 1);//注意这里最后一个参数是1 如果不是则报错
+    RETURN_ZVAL(retval_ptr, 1, 0);//注意这里最后一个参数是1 如果不是则报错
 
 }
 
@@ -734,7 +679,6 @@ PHP_MINFO_FUNCTION(hessian)
  */
 const zend_function_entry hessian_functions[] = {
 	PHP_FE(confirm_hessian_compiled,	NULL)		/* For testing, remove later. */
-    PHP_FE(hessian_unserialize, NULL)
 	PHP_FE_END	/* Must be the last line in hessian_functions[] */
 };
 /* }}} */
